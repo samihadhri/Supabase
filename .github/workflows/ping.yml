@@ -10,16 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Exécuter une requête pour réveiller la DB
+      - name: Forcer IPv4 et réveiller la DB
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          # On force l'acceptation du SSL
           PGSSLMODE: require
-          # On donne 60 secondes à la DB pour se réveiller au lieu de 10 par défaut
           PGCONNECT_TIMEOUT: 60
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
           
-          # On ajoute l'option --echo-errors pour voir exactement ce qui bloque si ça échoue
-          psql "$DB_URL" --echo-errors -c "SELECT 1 AS db_is_awake;"
+          # 1. Extraire le nom de domaine de votre lien (ex: db.gvfejynhrwetavarwsc.supabase.co)
+          DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+          echo "Hôte détecté : $DB_HOST"
+          
+          # 2. Trouver l'adresse IPv4 de ce domaine
+          IPV4=$(getent ahosts "$DB_HOST" | grep -w STREAM | awk '{print $1}' | head -n 1)
+          echo "Adresse IPv4 trouvée : $IPV4"
+          
+          # 3. Forcer le système à utiliser cet IPv4 (pour éviter le bug IPv6 de GitHub)
+          if [ -n "$IPV4" ]; then
+            echo "$IPV4 $DB_HOST" | sudo tee -a /etc/hosts
+            echo "IPv4 forcé avec succès dans /etc/hosts"
+          else
+            echo "Aucun IPv4 trouvé, on tente la connexion normale..."
+          fi
+          
+          # 4. Lancer la requête
+          psql "$DB_URL" -c "SELECT 1 AS db_is_awake;"
