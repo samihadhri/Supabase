@@ -1,0 +1,28 @@
+name: Keep Supabase DB Awake
+
+on:
+  schedule:
+    # S'exécute tous les jours à 3h00 du matin (heure de Paris/UTC+1 en hiver)
+    # Utilisez '0 2 * * *' pour l'heure d'été (UTC)
+    - cron: '0 3 * * *'
+    
+  # Permet de lancer le script manuellement depuis l'interface GitHub si besoin
+  workflow_dispatch:
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Exécuter une requête pour réveiller la DB
+        env:
+          # On va récupérer l'URL secrète depuis les paramètres de GitHub
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # Installation du client PostgreSQL
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          
+          # Exécution d'une requête très légère (SELECT 1)
+          # Le flag -c permet d'exécuter une commande et de se déconnecter immédiatement
+          psql "$DB_URL" -c "SELECT 1 AS db_is_awake;"
