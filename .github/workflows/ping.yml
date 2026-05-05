@@ -1,39 +1,26 @@
-name: Keep Supabase DB Awake
+name: Keep Supabase Awake2
 
 on:
   schedule:
+    # Tous les jours à 3h du matin
     - cron: '0 3 * * *'
   workflow_dispatch:
 
 jobs:
-  ping-database:
+  ping:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Forcer IPv4 et réveiller la DB
+      - name: Réveiller la DB via l'API
         env:
-          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          PGSSLMODE: require
-          PGCONNECT_TIMEOUT: 60
+          PROJECT_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          # On interroge le point de santé de Supabase. 
+          # Si Supabase répond, ça veut dire que la DB est réveillée !
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROJECT_URL/auth/v1/health")
           
-          # 1. Extraire le nom de domaine de votre lien (ex: db.gvfejynhrwetavarwsc.supabase.co)
-          DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
-          echo "Hôte détecté : $DB_HOST"
-          
-          # 2. Trouver l'adresse IPv4 de ce domaine
-          IPV4=$(getent ahosts "$DB_HOST" | grep -w STREAM | awk '{print $1}' | head -n 1)
-          echo "Adresse IPv4 trouvée : $IPV4"
-          
-          # 3. Forcer le système à utiliser cet IPv4 (pour éviter le bug IPv6 de GitHub)
-          if [ -n "$IPV4" ]; then
-            echo "$IPV4 $DB_HOST" | sudo tee -a /etc/hosts
-            echo "IPv4 forcé avec succès dans /etc/hosts"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Succès ! Supabase est réveillé (Status: 200)"
           else
-            echo "Aucun IPv4 trouvé, on tente la connexion normale..."
+            echo "❌ Échec (Status: $STATUS)"
+            exit 1
           fi
-          
-          # 4. Lancer la requête
-          psql "$DB_URL" -c "SELECT 1 AS db_is_awake;"
