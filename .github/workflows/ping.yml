@@ -1,26 +1,16 @@
-name: Keep Supabase Awake2
+name: Keep Supabase Alive
 
 on:
   schedule:
-    # Tous les jours à 3h du matin
-    - cron: '0 3 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # Chaque jour à minuit UTC
+  workflow_dispatch:         # Permet aussi de le lancer manuellement
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Réveiller la DB via l'API
-        env:
-          PROJECT_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Ping Supabase
         run: |
-          # On interroge le point de santé de Supabase. 
-          # Si Supabase répond, ça veut dire que la DB est réveillée !
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROJECT_URL/auth/v1/health")
-          
-          if [ "$STATUS" = "200" ]; then
-            echo "✅ Succès ! Supabase est réveillé (Status: 200)"
-          else
-            echo "❌ Échec (Status: $STATUS)"
-            exit 1
-          fi
+          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/teachers?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
