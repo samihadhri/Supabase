@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Réveiller la DB via l'API
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_URL }}
+          PROJECT_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # On interroge le point de santé de Supabase. 
           # Si Supabase répond, ça veut dire que la DB est réveillée !
